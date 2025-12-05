@@ -1,5 +1,6 @@
 python-dotenv
 google-generativeai
+langchain_google_genai
 langchain
 PyPDF2
 faiss-cpu
