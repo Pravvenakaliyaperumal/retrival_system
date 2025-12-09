@@ -1,46 +1,55 @@
 import streamlit as st
-from src.helper import get_pdf_text, get_text_chunks, get_vector_store, get_conversational_chain
+from src.helper import (
+    get_pdf_text,
+    get_text_chunks,
+    get_vector_store,
+    get_conversational_chain,
+)
+
+st.set_page_config(page_title="RAG Chatbot", page_icon="🤖")
+
+if "conversation" not in st.session_state:
+    st.session_state.conversation = None
+
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
+st.title("📚 RAG Chatbot Using Gemini + LangChain")
+st.write("Upload a PDF and ask questions based on its content.")
 
 
-def user_input(user_question):
-    response = st.session_state.conversation.run(input=user_question)
-    st.session_state.chatHistory = response['chat_history']
-    for i, message in enumerate(st.session_state.chatHistory):
-        if i % 2 == 0:
-            st.markdown(f"**User:** {message.content}")
-        else:
-            st.markdown(f"**AI:** {message.content}")
- 
+# ----------------------------
+# SIDEBAR FOR PDF UPLOAD
+# ----------------------------
+with st.sidebar:
+    st.header("Upload PDF documents")
+    uploaded_files = st.file_uploader(
+        "Upload PDFs", accept_multiple_files=True, type=["pdf"]
+    )
 
-def main():
-    st.set_page_config(page_title="information retrival", layout="centered")
-    st.header("Information Retrieval System")
+    if uploaded_files:
+        with st.spinner("Reading PDF and building vector database..."):
+            text = get_pdf_text(uploaded_files)
+            chunks = get_text_chunks(text)
+            vector_store = get_vector_store(chunks)
 
-    user_question = st.text_input("Ask your question about the pdf files here:")
+            st.session_state.vector_store = vector_store
+            st.session_state.conversation = get_conversational_chain(vector_store)
 
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "chatHistory" not in st.session_state:
-        st.session_state.chatHistory = None
-    if user_question:
-        user_input(user_question)
-
-    with st.sidebar:
-        st.title("Menu")
-        pdf_docs= st.file_uploader("upload your pdf files and click on the submit & Process Button", accept_multiple_files=True)
-        if st.button("submit & Process"):
-            with st.spinner("Processing"):
-                raw_text= get_pdf_text(pdf_docs)
-                text_chunks= get_text_chunks(raw_text)
-                vector_store= get_vector_store(text_chunks)
-                st.session_state.conversation= get_conversational_chain(vector_store)
-
-                
+        st.success("PDF processed and vector DB created successfully!")
 
 
+# ----------------------------
+# MAIN CHAT INTERFACE
+# ----------------------------
+user_question = st.text_input("Ask a question about your uploaded documents:")
 
+if user_question:
+    if st.session_state.conversation is None:
+        st.error("Please upload a PDF first.")
+    else:
+        with st.spinner("Thinking..."):
+            response = st.session_state.conversation.invoke(user_question)
 
-                st.success("your pdf files are processed successfully")
-
-if __name__ == "__main__":
-    main()
+        st.write("### 📘 Answer:")
+        st.write(response)
